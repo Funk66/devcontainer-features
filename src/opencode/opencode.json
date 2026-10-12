@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "lmstudio/incoai/Qwen3.8-27B-Splash",
+  "provider": {
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Bionic",
+      "options": {
+        "baseURL": "http://mbp-m4:1236/v1"
+      },
+      "models": {
+        "incoai/Qwen3.8-27B-Splash": {
+          "name": "Qwen3.8 27B Splash"
+        },
+        "incoai/Qwen3.6-35B-A3B-Splash": {
+          "name": "Qwen3.6 35B A3B Splash"
+        }
+      }
+    }
+  }
+}

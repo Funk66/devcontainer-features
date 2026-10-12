@@ -1,0 +1,22 @@
+{
+  "name": "opencode",
+  "id": "opencode",
+  "version": "0.1.0",
+  "description": "Configure opencode to use a local, OpenAI-compatible inference endpoint (defaults to http://mbp-m4:1236/v1). Does not install the opencode binary; list the 'opencode.ai' feature in devcontainer.json for that (installsAfter).",
+  "documentationURL": "https://github.com/devcontainer-community/devcontainer-features/tree/main/src/opencode.ai",
+  "installsAfter": [
+    "ghcr.io/devcontainer-community/devcontainer-features/opencode.ai"
+  ],
+  "options": {
+    "host": {
+      "type": "string",
+      "default": "mbp-m4",
+      "description": "Host or IP address of the OpenAI-compatible inference endpoint."
+    },
+    "port": {
+      "type": "string",
+      "default": "1236",
+      "description": "Port of the OpenAI-compatible inference endpoint."
+    }
+  }
+}
