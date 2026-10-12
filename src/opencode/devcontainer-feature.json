@@ -1,12 +1,12 @@
 {
   "name": "opencode",
   "id": "opencode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Configure opencode to use a local, OpenAI-compatible inference endpoint (defaults to http://mbp-m4:1236/v1). Does not install the opencode binary; list the 'opencode.ai' feature in devcontainer.json for that (installsAfter).",
   "documentationURL": "https://github.com/devcontainer-community/devcontainer-features/tree/main/src/opencode.ai",
-  "installsAfter": [
-    "ghcr.io/devcontainer-community/devcontainer-features/opencode.ai"
-  ],
+  "dependsOn": {
+    "ghcr.io/devcontainer-community/devcontainer-features/opencode.ai": {}
+  },
   "options": {
     "host": {
       "type": "string",
