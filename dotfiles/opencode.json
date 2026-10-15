@@ -1,0 +1,59 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "local/incoai/Qwen3.6-35B-A3B-Splash",
+  "lsp": true,
+  "formatter": true,
+  "update": "auto",
+  "websearch": {
+    "provider": "tavily"
+  },
+  "mcp": {
+    "servers": {
+      "sofa": {
+        "type": "remote",
+        "url": "https://agents.stackoverflow.com/mcp"
+      }
+    }
+  },
+  "compaction": {
+    "auto": true,
+    "keep": { "tokens": 50000 }
+  },
+  "permissions": [
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "edit", "resource": "*", "effect": "allow" },
+    { "action": "external_directory", "resource": "*", "effect": "allow" }
+  ],
+  "providers": {
+    "remote": {
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "name": "Bionic",
+      "settings": {
+        "baseURL": "http://mbp-m4:1236/v1"
+      },
+      "models": {
+        "incoai/Qwen3.8-27B-Splash": {
+          "name": "Qwen 3.8 (remote)"
+        },
+        "incoai/Qwen3.6-35B-A3B-Splash": {
+          "name": "Qwen 3.6 (remote)"
+        }
+      }
+    },
+    "local": {
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "name": "Bionic",
+      "settings": {
+        "baseURL": "http://192.168.178.100:1236/v1"
+      },
+      "models": {
+        "incoai/Qwen3.8-27B-Splash": {
+          "name": "Qwen 3.8 (local)"
+        },
+        "incoai/Qwen3.6-35B-A3B-Splash": {
+          "name": "Qwen 3.6 (local)"
+        }
+      }
+    }
+  }
+}

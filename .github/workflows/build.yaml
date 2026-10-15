@@ -1,0 +1,90 @@
+name: "Build and publish devcontainer base image"
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 4 * * 1" # Weekly, Monday 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      no_cache:
+        description: "Build without using the build cache"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Compute image reference"
+        id: meta
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          # `latest` + ISO 8601 year/week (e.g. 2026-W42) as a rollback target
+          tags="${image}:latest,${image}:$(date -u +%G-W%V)"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+      - name: "Set up Buildx"
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: "Log in to the container registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Build and push"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && toJson(inputs.no_cache) || 'false' }}
+
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+    steps:
+      - name: "Log in to the container registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Pull image"
+        run: docker pull "${{ needs.build.outputs.image }}:latest"
+
+      - name: "Smoke test"
+        run: |
+          set -euo pipefail
+          docker run --rm --user ubuntu "${{ needs.build.outputs.image }}:latest" bash -c '
+            set -euo pipefail
+            for tool in git delta nvim fzf fd rg jq yq lazygit make python3 curl unzip xz fdfind opencode; do
+              command -v "$tool" >/dev/null || { echo "FAIL: $tool not on PATH"; exit 1; }
+            done
+            git --version
+            nvim --version | head -n1
+            opencode --version
+            fd --version
+            echo "smoke test: all tools present"
+          '
