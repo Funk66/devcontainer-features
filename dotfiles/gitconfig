@@ -1,8 +1,5 @@
 # vim: ft=gitconfig
 
-[user]
-  name = Guillermo Guirao Aguilar
-  email = dev@guirao.net
 [core]
   editor = vim
   excludesfile = ~/.gitignore_global

@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   git-delta \
   jq \
   lazygit \
+  locales \
   make \
   nodejs \
   neovim \
@@ -26,7 +27,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   xz-utils \
   && rm -rf /var/lib/apt/lists/* \
   && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
-  && ssh-keyscan -t ed25519,rsa,ecdsa github.com >> /etc/ssh/ssh_known_hosts
+  && sed -i 's/^#\s*set -o vi/set -o vi/' /etc/bash.bashrc \
+  && ssh-keyscan -t ed25519,rsa,ecdsa github.com >> /etc/ssh/ssh_known_hosts \
+  && locale-gen en_US.UTF-8 \
+  && update-locale LANG=C.UTF-8
+
 
 COPY --chown=ubuntu:ubuntu dotfiles/gitconfig /home/ubuntu/.gitconfig
 COPY --chown=ubuntu:ubuntu dotfiles/opencode.json /home/ubuntu/.config/opencode/opencode.json
@@ -38,6 +43,7 @@ RUN mkdir -p ~/.local/share/nvim ~/.local/state/nvim ~/.local/state/opencode \
   && git clone --depth 1 https://github.com/funk66/vim ~/.config/nvim \
   && curl -fsSL https://opencode.ai/v2/install | bash
 
+ENV PS1='\[\e[32m\]\w\[\e[0m\]|> '
 ENV PATH="/home/ubuntu/.opencode/bin:$PATH"
 
 WORKDIR /home/ubuntu
