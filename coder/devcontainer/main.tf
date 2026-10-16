@@ -260,7 +260,7 @@ resource "docker_container" "devcontainer" {
   }
 
   volumes {
-    container_path = "/home/coder"
+    container_path = "/home/ubuntu"
     volume_name    = docker_volume.devcontainer_home_volume.name
     read_only      = false
   }

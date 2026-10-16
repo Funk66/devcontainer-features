@@ -14,7 +14,109 @@ on:
         default: false
 
 jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      should-build: ${{ steps.decide.outputs.should-build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so we can inspect the recipe at the last build commit
+          fetch-depth: 0
+
+      - name: "Decide whether the image recipe changed"
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          GITHUB_WORKFLOW_FILENAME="${GITHUB_WORKFLOW_FILENAME:-build.yaml}"
+          GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-}"
+          # The "recipe" is everything that can influence the image: the
+          # Containerfile itself plus every file copied into it. Files that
+          # only live in the build context but are never COPYed (e.g. the
+          # coder/ Terraform configs) are deliberately excluded, and remote
+          # dependencies (vim clone, opencode installer) are handled by the
+          # weekly build instead.
+          recipe_paths=(Containerfile)
+          while IFS= read -r src; do
+            recipe_paths+=("$src")
+          done < <(awk '
+            /^[[:space:]]*(COPY|ADD)[[:space:]]/ {
+              n = 0
+              split("", toks)
+              for (i = 2; i <= NF; i++) {
+                t = $i
+                if (t ~ /^-/) continue
+                gsub(/^"|"$/, "", t)
+                toks[++n] = t
+              }
+              # the last token is the destination; everything before it is a source
+              for (i = 1; i < n; i++)
+                print toks[i]
+            }' Containerfile)
+
+          echo "Recipe inputs:"
+          printf '  %s\n' "${recipe_paths[@]}"
+
+          # Hash of the git blobs of all recipe inputs at a given revision.
+          # Deterministic: git ls-tree lists paths in sorted order.
+          recipe_hash() {
+            git ls-tree -r "$1" -- "${recipe_paths[@]}" 2>/dev/null \
+              | sha256sum | cut -d' ' -f1 || true
+          }
+
+          should_build=true
+
+          case "${GITHUB_EVENT_NAME}" in
+            push)
+              # Find the commit of the most recent successful run of this
+              # workflow on main (push-triggered or weekly, both build from
+              # main). If the recipe there is byte-identical to the current
+              # one, the registry already holds an identical image.
+              if [[ -z "${GITHUB_REPOSITORY}" ]]; then
+                echo "GITHUB_REPOSITORY not set; skipping last-build check"
+                last_sha=""
+              else
+                last_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?path=${GITHUB_WORKFLOW_FILENAME}&branch=main&status=success&per_page=100" \
+                  --jq '.workflow_runs[0].head_sha // empty' || true)"
+              fi
+              if [[ ${#last_sha} -eq 40 ]]; then
+                current="$(recipe_hash HEAD)"
+                previous="$(recipe_hash "${last_sha}")"
+                if [[ -z "${previous}" ]]; then
+                  echo "Previous commit ${last_sha:0:7} not in checkout; building"
+                else
+                  echo "Current recipe hash:  ${current}"
+                  echo "Last build hash:      ${previous}"
+                  if [[ "${current}" == "${previous}" ]]; then
+                    should_build=false
+                    echo "Container recipe unchanged since last successful build ($(git log -1 --format='%h %s' "${last_sha}")); skipping"
+                  else
+                    echo "Container recipe changed since ${last_sha:0:7}; building"
+                  fi
+                fi
+              else
+                echo "No previous successful build found; building"
+              fi
+              ;;
+            schedule)
+              echo "Weekly build; building to pick up updated dependencies"
+              ;;
+            workflow_dispatch)
+              echo "Manual dispatch; building"
+              ;;
+          esac
+
+          echo "should-build=${should_build}" >> "${GITHUB_OUTPUT}"
+
   build:
+    needs: build-check
+    if: ${{ needs.build-check.outputs.should-build == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,10 +158,16 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && toJson(inputs.no_cache) || 'false' }}
+          # The weekly rebuild must re-run every RUN layer so apt packages,
+          # the vim clone, and the opencode installer pick up their latest
+          # versions, even if the ubuntu:26.04 base digest did not move.
+          no-cache: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.no_cache) }}
 
   smoke-test:
     needs: build
+    # Runs only when a build actually happened; a skipped build means the
+    # registry already holds an identical image.
+    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       packages: read

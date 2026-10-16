@@ -130,15 +130,6 @@ module "code-server" {
   order    = 1
 }
 
-module "jetbrains" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/coder/jetbrains/coder"
-  version    = "~> 1.0"
-  agent_id   = coder_agent.podman.id
-  agent_name = "main"
-  folder     = "/home/coder"
-}
-
 # ── Volumes ───────────────────────────────────────────────────────────────
 resource "docker_volume" "podman_home_volume" {
   name = "coder-${data.coder_workspace.me.id}-home"
@@ -180,7 +171,7 @@ resource "docker_container" "podman" {
     ip   = "host-gateway"
   }
   volumes {
-    container_path = "/home/coder"
+    container_path = "/home/ubuntu"
     volume_name    = docker_volume.podman_home_volume.name
     read_only      = false
   }
