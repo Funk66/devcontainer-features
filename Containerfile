@@ -1,7 +1,9 @@
 # hadolint global ignore=DL3008
 FROM ubuntu:26.04
 
-ENV SHELL=/bin/bash LANG=C.UTF-8 EDITOR=nvim VISUAL=nvim NVIM_DEVCONTAINER=1
+ENV LANG=C.UTF-8 EDITOR=nvim VISUAL=nvim NVIM_DEVCONTAINER=1
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   bash \
@@ -12,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   fzf \
   git \
   git-delta \
+  gpg \
   jq \
   lazygit \
   locales \
@@ -25,6 +28,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   unzip \
   yq \
   xz-utils \
+  && curl -fsSl https://cli.github.com/packages/githubcli-archive-keyring.gpg > /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+  && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+  && apt-get update && apt-get install -y --no-install-recommends gh \
   && rm -rf /var/lib/apt/lists/* \
   && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
   && printf 'set -o vi\n' >> /etc/bash.bashrc \
@@ -33,12 +40,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8
 
-
 COPY --chown=1000:1000 dotfiles/gitconfig /home/ubuntu/.gitconfig
 COPY --chown=1000:1000 dotfiles/opencode.json /home/ubuntu/.config/opencode/opencode.json
 
 USER 1000
-# hadolint ignore=DL4006
 RUN mkdir -p ~/.local/share/nvim ~/.local/state/nvim ~/.local/state/opencode \
   && git clone --depth 1 https://github.com/funk66/vim ~/.config/nvim \
   && curl -fsSL https://opencode.ai/v2/install | bash

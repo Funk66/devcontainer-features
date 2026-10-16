@@ -19,6 +19,11 @@ variable "docker_socket" {
   type        = string
 }
 
+data "coder_external_auth" "github" {
+  id     = "github"
+  optional = true
+}
+
 locals {
   workspace_image = "ghcr.io/funk66/devcontainers:latest"
 
@@ -70,6 +75,11 @@ resource "coder_agent" "devcontainer" {
       cp -rn /etc/skel/. "$HOME/"
       touch "$HOME/.init_done"
     fi
+
+    if [ -n "$${GH_TOKEN:-}" ]; then
+      gh auth login --hostname github.com --with-token <<< "$${GH_TOKEN}"
+      unset GH_TOKEN
+    fi
   EOT
   shutdown_script = <<-EOT
     set -e
@@ -82,6 +92,7 @@ resource "coder_agent" "devcontainer" {
     GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
     GIT_COMMITTER_NAME  = data.coder_workspace_owner.me.full_name
     GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
+    GH_TOKEN            = data.coder_external_auth.github.access_token
   }
 
   metadata {
