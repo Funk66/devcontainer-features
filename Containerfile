@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   gpg \
   jq \
   lazygit \
+  less \
   locales \
   make \
   nodejs \
@@ -37,6 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get update && apt-get install -y --no-install-recommends gh \
   && rm -rf /var/lib/apt/lists/* \
   && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
+  && printf 'export PAGER=less\n' >> /etc/bash.bashrc \
   && printf 'set -o vi\n' >> /etc/bash.bashrc \
   && printf 'export PS1="\\[\\e[32m\\]\\w\\[\\e[33m\\]|>\\e[0m\\] "' >> /home/ubuntu/.bashrc \
   && ssh-keyscan -t ed25519,rsa,ecdsa github.com >> /etc/ssh/ssh_known_hosts \
