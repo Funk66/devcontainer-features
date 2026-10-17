@@ -25,9 +25,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   openssh-client \
   python3 \
   ripgrep \
+  sudo \
   unzip \
   yq \
   xz-utils \
+  && echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
+  && chmod 0440 /etc/sudoers.d/ubuntu \
   && curl -fsSl https://cli.github.com/packages/githubcli-archive-keyring.gpg > /etc/apt/keyrings/githubcli-archive-keyring.gpg \
   && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
@@ -35,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/* \
   && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
   && printf 'set -o vi\n' >> /etc/bash.bashrc \
-  && printf 'PS1=\\[\\e[32m\\]\\w\\[\\e[0m\\]|> \\n' >> /etc/bash.bashrc \
+  && printf 'export PS1="\\[\\e[32m\\]\\w\\[\\e[33m\\]|>\\e[0m\\] "' >> /home/ubuntu/.bashrc \
   && ssh-keyscan -t ed25519,rsa,ecdsa github.com >> /etc/ssh/ssh_known_hosts \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8

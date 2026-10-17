@@ -19,13 +19,10 @@ variable "docker_socket" {
   type        = string
 }
 
-data "coder_external_auth" "github" {
-  id       = "github"
-  optional = true
-}
-
 locals {
   workspace_image = "ghcr.io/funk66/devcontainers:latest"
+  clone_repo      = data.coder_parameter.repo_name.value
+  clone_count     = local.clone_repo == "" ? 0 : data.coder_workspace.me.start_count
 }
 
 provider "docker" {
@@ -35,6 +32,19 @@ provider "docker" {
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+data "coder_parameter" "repo_name" {
+  type         = "string"
+  name         = "repo_name"
+  display_name = "Repository name"
+  description  = "Repository to clone on boot"
+  default      = ""
+  mutable      = true
+
+  validation {
+    regex = "^(?:[A-Za-z0-9][A-Za-z0-9._-]*)?$"
+    error = "Enter a valid repository name, or leave empty."
+  }
+}
 
 # ── Coder agent ───────────────────────────────────────────────────────────
 resource "coder_agent" "podman" {
@@ -60,7 +70,6 @@ resource "coder_agent" "podman" {
     GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
     GIT_COMMITTER_NAME  = data.coder_workspace_owner.me.full_name
     GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
-    GH_TOKEN            = data.coder_external_auth.github.access_token
   }
 
   metadata {
@@ -139,6 +148,15 @@ module "code-server" {
   version  = "~> 1.0"
   agent_id = coder_agent.podman.id
   order    = 1
+}
+
+module "git-clone" {
+  count    = local.clone_count
+  source   = "registry.coder.com/coder/git-clone/coder"
+  version  = "~> 2.0"
+  agent_id = coder_agent.podman.id
+  url      = "git@github.com:funk66/${local.clone_repo}.git"
+  base_dir = "~"
 }
 
 # ── Volumes ───────────────────────────────────────────────────────────────
