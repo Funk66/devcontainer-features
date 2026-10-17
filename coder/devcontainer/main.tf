@@ -19,11 +19,6 @@ variable "docker_socket" {
   type        = string
 }
 
-data "coder_external_auth" "github" {
-  id     = "github"
-  optional = true
-}
-
 locals {
   workspace_image = "ghcr.io/funk66/devcontainers:latest"
 
@@ -84,7 +79,10 @@ resource "coder_agent" "devcontainer" {
   shutdown_script = <<-EOT
     set -e
 
-    sudo service docker stop
+    # Gracefully stop Docker if it is running.
+    if sudo service docker status >/dev/null 2>&1; then
+      sudo service docker stop
+    fi
   EOT
 
   env = {
@@ -92,7 +90,6 @@ resource "coder_agent" "devcontainer" {
     GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
     GIT_COMMITTER_NAME  = data.coder_workspace_owner.me.full_name
     GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
-    GH_TOKEN            = data.coder_external_auth.github.access_token
   }
 
   metadata {
@@ -171,12 +168,18 @@ resource "coder_script" "init_docker_in_docker" {
     #!/bin/sh
     set -eu
 
-    echo "Preserving process limits inherited from the Podman host..."
-    sudo sed -i \
-      -e 's/^[[:space:]]*ulimit -u unlimited[[:space:]]*$/: # Keep inherited process limit/' \
-      -e 's/^[[:space:]]*ulimit -p unlimited[[:space:]]*$/: # Keep inherited process limit/' \
-      /etc/init.d/docker
-    sudo sh -n /etc/init.d/docker
+    # Only modify process limits if the init script exists.
+    # Some images (e.g. Podman-derived) don't use /etc/init.d/docker.
+    if [ -f /etc/init.d/docker ]; then
+      echo "Preserving process limits inherited from the Podman host..."
+      sudo sed -i \
+        -e 's/^[[:space:]]*ulimit -u unlimited[[:space:]]*$/: # Keep inherited process limit/' \
+        -e 's/^[[:space:]]*ulimit -p unlimited[[:space:]]*$/: # Keep inherited process limit/' \
+        /etc/init.d/docker
+      sudo sh -n /etc/init.d/docker
+    else
+      echo "/etc/init.d/docker not found; skipping process limit adjustment."
+    fi
 
     echo "Starting Docker..."
     if ! sudo service docker status >/dev/null 2>&1; then
